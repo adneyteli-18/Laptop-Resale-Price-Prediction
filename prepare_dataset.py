@@ -8,7 +8,6 @@ OUTPUT_PATH = PROJECT_ROOT / "dataset.csv"
 
 SOURCE_COLUMNS = [
     "price",
-    "state",
     "storage_size_gb",
     "ram_size_gb",
     "warranty",
@@ -18,7 +17,6 @@ SOURCE_COLUMNS = [
     "clean_display_inches",
     "clean_gpu_composite",
     "is_global_train",
-    "condition_degradation_index",
 ]
 
 
@@ -45,7 +43,6 @@ def prepare_dataset(source_path: Path, output_path: Path = OUTPUT_PATH) -> pd.Da
         "ram_size_gb",
         "warranty",
         "clean_display_inches",
-        "condition_degradation_index",
     ]:
         dataset[column] = pd.to_numeric(dataset[column], errors="coerce")
 

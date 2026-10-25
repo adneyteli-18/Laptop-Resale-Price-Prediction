@@ -22,14 +22,12 @@ CATEGORICAL_FEATURES = [
     "clean_model_series",
     "cpu_composite_clean",
     "clean_gpu_composite",
-    "state",
 ]
 NUMERIC_FEATURES = [
     "ram_size_gb",
     "storage_size_gb",
     "clean_display_inches",
     "warranty",
-    "condition_degradation_index",
 ]
 FEATURES = CATEGORICAL_FEATURES + NUMERIC_FEATURES
 REQUIRED_COLUMNS = [TARGET_COLUMN, SPLIT_COLUMN, *FEATURES]

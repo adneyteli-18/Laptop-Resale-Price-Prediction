@@ -4,7 +4,7 @@
 Train and deploy a machine-learning regression pipeline that estimates a used laptop's seller asking price from Indian second-hand marketplace listing data.
 
 ## Problem Statement
-Laptop prices depend on more than broad component categories. Model series, exact processor and graphics configuration, location, warranty, and observed wear all affect the prices sellers ask. The original demonstration model used synthetic formula-generated targets, so it could not support real-world valuations. This version uses a documented C2C listing dataset and evaluates against its provided holdout split.
+Laptop prices depend on model series, processor and graphics configuration, memory, storage, display size, and warranty. The original demonstration model used synthetic formula-generated targets, so it could not support real-world valuations. This version uses a documented C2C listing dataset and evaluates against its provided holdout split.
 
 ## Important Limitation
 The dataset target is a seller's **asking price**, not a confirmed completed sale price. Predictions estimate listing prices and are not guaranteed sale values or professional valuations. Dataset coverage and feature quality also constrain accuracy.
@@ -17,10 +17,11 @@ This project distributes a reduced, feature-only version of that dataset in `dat
 ## Model Features and Target
 The model predicts `price` (INR asking price) from:
 - Brand, normalized laptop model series, CPU configuration, and GPU configuration.
-- RAM, SSD capacity, and display diagonal.
-- Indian state, warranty status, and the source's condition/degradation index.
+- RAM, SSD capacity, display diagonal, and warranty status.
 
-The app's controls correspond to the trained pipeline's input features. Listing description, price-normalized columns, and target-encoded columns are excluded to avoid exposing seller text and preventing target leakage.
+The app uses dropdown and numeric input controls for model features; location and sliders are not required. Listing description, location, condition score, price-normalized columns, and target-encoded columns are excluded so the inputs stay user-enterable and target leakage is prevented.
+
+Dashboard selections are searchable and populated from the training data: 28 brands, all 31 model series (filtered to matching brand and generic listings), model-specific processor choices drawn from the 535 observed processor categories, and all 110 graphics configurations.
 
 ## Training and Evaluation
 - Preprocessing is contained in the saved scikit-learn pipeline: numeric median imputation and categorical imputation/one-hot encoding.
@@ -29,13 +30,13 @@ The app's controls correspond to the trained pipeline's input features. Listing 
 - Reported metrics are MAE, RMSE, R², and a training-median MAE baseline, evaluated on that holdout.
 - Metrics describe performance on asking-price listings from this dataset, not accuracy against actual completed sales or future markets.
 
-Latest run on the source-provided holdout (1,939 listings):
-- Median-baseline MAE: ₹16,307.68
-- Model MAE: ₹7,222.25
-- Model RMSE: ₹15,644.34
-- Model R²: 0.6713
+The training script prints the latest metrics on the source-provided holdout. The RMSE may be much higher than MAE because some asking prices are difficult to estimate. These figures are not a guarantee for an individual laptop.
 
-The RMSE remains materially higher than the MAE because some asking prices are difficult to estimate. These figures are not a guarantee for an individual laptop.
+Latest run using the eight user-enterable features (1,939 holdout listings):
+- Median-baseline MAE: ₹16,307.68
+- Model MAE: ₹7,460.25
+- Model RMSE: ₹15,692.28
+- Model R²: 0.6692
 
 Run training:
 ```bash
@@ -60,7 +61,7 @@ The preparation script retains only needed feature/target/split columns, drops r
 - `app.py` — Streamlit listing-price estimator.
 - `prepare_dataset.py` — creates the privacy-conscious feature-only dataset from the Kaggle source CSV.
 - `train_model.py` — validates data, trains the preprocessing/model pipeline, evaluates on the fixed holdout, and saves the pipeline.
-- `dataset.csv` — prepared listing data, excluding free-text seller descriptions and target-derived features.
+- `dataset.csv` — prepared listing data, excluding free-text seller descriptions, location, condition score, and target-derived features.
 - `dataset_synthetic_demo.csv` — the previous synthetic dataset, retained as an archived example only; it is not used for current training or prediction.
 - `laptop_price_model.joblib` — serialized fitted pipeline.
 - `test_train_model.py` — focused tests for dataset validation and model inference.
