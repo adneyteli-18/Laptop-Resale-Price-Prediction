@@ -8,6 +8,7 @@ OUTPUT_PATH = PROJECT_ROOT / "dataset.csv"
 
 SOURCE_COLUMNS = [
     "price",
+    "is_discrete",
     "storage_size_gb",
     "ram_size_gb",
     "warranty",
@@ -39,6 +40,7 @@ def prepare_dataset(source_path: Path, output_path: Path = OUTPUT_PATH) -> pd.Da
     )
     for column in [
         "price",
+        "is_discrete",
         "storage_size_gb",
         "ram_size_gb",
         "warranty",
@@ -48,6 +50,8 @@ def prepare_dataset(source_path: Path, output_path: Path = OUTPUT_PATH) -> pd.Da
 
     dataset = dataset.dropna(subset=["price", "is_global_train"]).copy()
     dataset = dataset[dataset["price"] > 0]
+    dataset = dataset[dataset["is_discrete"].isin([0, 1])]
+    dataset["is_discrete"] = dataset["is_discrete"].astype(int)
     dataset["warranty"] = dataset["warranty"].astype(int)
     dataset = dataset.reset_index(drop=True)
     if dataset.empty or dataset["is_global_train"].nunique() != 2:

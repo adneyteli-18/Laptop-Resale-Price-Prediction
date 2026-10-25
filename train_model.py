@@ -24,6 +24,7 @@ CATEGORICAL_FEATURES = [
     "clean_gpu_composite",
 ]
 NUMERIC_FEATURES = [
+    "is_discrete",
     "ram_size_gb",
     "storage_size_gb",
     "clean_display_inches",
@@ -31,6 +32,15 @@ NUMERIC_FEATURES = [
 ]
 FEATURES = CATEGORICAL_FEATURES + NUMERIC_FEATURES
 REQUIRED_COLUMNS = [TARGET_COLUMN, SPLIT_COLUMN, *FEATURES]
+INTEGRATED_GRAPHICS = "INTEGRATED_GRAPHICS"
+
+
+def normalize_graphics(df: pd.DataFrame) -> pd.DataFrame:
+    normalized = df.copy()
+    normalized.loc[normalized["is_discrete"] == 0, "clean_gpu_composite"] = (
+        INTEGRATED_GRAPHICS
+    )
+    return normalized
 
 
 def load_dataset(path: Path = DATASET_PATH) -> pd.DataFrame:
@@ -55,8 +65,10 @@ def load_dataset(path: Path = DATASET_PATH) -> pd.DataFrame:
 
     if df[FEATURES].isna().all(axis=None):
         raise ValueError("Dataset has no usable feature values.")
+    if df["is_discrete"].isna().any() or not df["is_discrete"].isin([0, 1]).all():
+        raise ValueError("Dataset must contain a valid dedicated-GPU flag for every row.")
 
-    return df
+    return normalize_graphics(df)
 
 
 def build_pipeline() -> Pipeline:

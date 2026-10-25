@@ -4,7 +4,7 @@
 Train and deploy a machine-learning regression pipeline that estimates a used laptop's seller asking price from Indian second-hand marketplace listing data.
 
 ## Problem Statement
-Laptop prices depend on model series, processor and graphics configuration, memory, storage, display size, and warranty. The original demonstration model used synthetic formula-generated targets, so it could not support real-world valuations. This version uses a documented C2C listing dataset and evaluates against its provided holdout split.
+Laptop prices depend on model series, processor and graphics configuration, memory, storage, display size, warranty, and how long the laptop has been used. The original demonstration model used synthetic formula-generated targets, so it could not support real-world valuations. This version uses a documented C2C listing dataset and evaluates against its provided holdout split.
 
 ## Important Limitation
 The dataset target is a seller's **asking price**, not a confirmed completed sale price. Predictions estimate listing prices and are not guaranteed sale values or professional valuations. Dataset coverage and feature quality also constrain accuracy.
@@ -16,12 +16,14 @@ This project distributes a reduced, feature-only version of that dataset in `dat
 
 ## Model Features and Target
 The model predicts `price` (INR asking price) from:
-- Brand, normalized laptop model series, CPU configuration, and GPU configuration.
+- Brand, normalized laptop model series, CPU configuration, dedicated-GPU status, and GPU configuration.
 - RAM, SSD capacity, display diagonal, and warranty status.
 
-The app uses dropdown and numeric input controls for model features; location and sliders are not required. Listing description, location, condition score, price-normalized columns, and target-encoded columns are excluded so the inputs stay user-enterable and target leakage is prevented.
+When a laptop has no dedicated graphics card, the graphics-card selector is hidden and the model treats its graphics as integrated. Dedicated-GPU configurations are shown only when the user enables that feature. The source labels dedicated-GPU presence separately from the GPU name; this explicit flag is used during training and prediction.
 
-Dashboard selections are searchable and populated from the training data: 28 brands, all 31 model series (filtered to matching brand and generic listings), model-specific processor choices drawn from the 535 observed processor categories, and all 110 graphics configurations.
+The current source dataset does **not** include actual years of laptop use. Its `listing_age_days` field describes how long a listing has existed, not how long the laptop was used, so it is not used as a substitute. Listing description, location, condition score, price-normalized columns, listing age, and target-encoded columns are excluded to prevent unsupported inputs and target leakage.
+
+Dashboard selections are searchable and populated from the training data: 28 brands, all 31 model series (filtered to matching brand and generic listings), model-specific processor choices drawn from the 535 observed processor categories, and dedicated graphics configurations from the training split.
 
 ## Training and Evaluation
 - Preprocessing is contained in the saved scikit-learn pipeline: numeric median imputation and categorical imputation/one-hot encoding.
@@ -32,16 +34,20 @@ Dashboard selections are searchable and populated from the training data: 28 bra
 
 The training script prints the latest metrics on the source-provided holdout. The RMSE may be much higher than MAE because some asking prices are difficult to estimate. These figures are not a guarantee for an individual laptop.
 
-Latest run using the eight user-enterable features (1,939 holdout listings):
+Latest run using nine user-enterable features (1,939 holdout listings):
 - Median-baseline MAE: ₹16,307.68
-- Model MAE: ₹7,460.25
-- Model RMSE: ₹15,692.28
-- Model R²: 0.6692
+- Model MAE: ₹7,565.49
+- Model RMSE: ₹15,386.30
+- Model R²: 0.6820
+
+Compared with the previous eight-feature run, this model improves RMSE and R² on the source holdout, while MAE is slightly higher. The model is not uniformly more accurate across every metric.
 
 Run training:
 ```bash
 python train_model.py
 ```
+
+To train years of use as a price feature, a dataset with a reliable per-laptop usage duration is required. Do not treat listing age or an inferred model release year as years used.
 
 To reproduce `dataset.csv`, download the source dataset archive from Kaggle, extract `Kaggle_Master_Engineered_State.csv`, then run:
 ```bash

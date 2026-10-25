@@ -1,9 +1,23 @@
 import unittest
 
 import numpy as np
+import pandas as pd
 
-from app import _format_hardware_option, _model_series_options, _options
-from train_model import FEATURES, SPLIT_COLUMN, TARGET_COLUMN, build_pipeline, load_dataset
+from app import (
+    _dedicated_gpu_options,
+    _format_hardware_option,
+    _model_series_options,
+    load_reference_data,
+)
+from train_model import (
+    FEATURES,
+    INTEGRATED_GRAPHICS,
+    SPLIT_COLUMN,
+    TARGET_COLUMN,
+    build_pipeline,
+    load_dataset,
+    normalize_graphics,
+)
 
 
 class TrainingPipelineTests(unittest.TestCase):
@@ -18,24 +32,48 @@ class TrainingPipelineTests(unittest.TestCase):
         self.assertNotIn("description", dataset.columns)
         self.assertNotIn("state", FEATURES)
         self.assertNotIn("condition_degradation_index", FEATURES)
-        self.assertEqual(len(FEATURES), 8)
+        self.assertIn("is_discrete", FEATURES)
+        self.assertEqual(len(FEATURES), 9)
 
-    def test_dashboard_catalog_exposes_all_models_and_graphics(self):
-        dataset = load_dataset()
-        training_rows = dataset[dataset[SPLIT_COLUMN]]
+    def test_dashboard_catalog_exposes_all_models_and_only_dedicated_graphics(self):
+        training_rows = load_reference_data()
         model_options = {
             model
             for brand in training_rows["clean_brand"].unique()
             for model in _model_series_options(training_rows, brand)
         }
-        graphics_options = _options(training_rows, "clean_gpu_composite")
+        graphics_options = _dedicated_gpu_options(training_rows)
+        dedicated_rates = training_rows.groupby("clean_gpu_composite")["is_discrete"].mean()
 
         self.assertEqual(model_options, set(training_rows["clean_model_series"].unique()))
-        self.assertEqual(len(graphics_options), training_rows["clean_gpu_composite"].nunique())
+        self.assertEqual(
+            set(graphics_options),
+            set(dedicated_rates[dedicated_rates > 0.5].index),
+        )
+        self.assertNotIn(INTEGRATED_GRAPHICS, graphics_options)
+        self.assertFalse(any("IGPU" in option for option in graphics_options))
         self.assertIn("RTX4090 16GB", [_format_hardware_option(option) for option in graphics_options])
         self.assertEqual(
             _format_hardware_option("INTEL_CORE_I5_SKU11_TH"),
             "Intel Core i5 SKU11 TH",
+        )
+
+    def test_integrated_graphics_are_normalized_to_no_dedicated_gpu(self):
+        sample = pd.DataFrame(
+            {
+                "is_discrete": [0, 1],
+                "clean_gpu_composite": [
+                    "INTEL_UHD_SYSRAM",
+                    "RTX4090_16GB",
+                ],
+            }
+        )
+
+        normalized = normalize_graphics(sample)
+
+        self.assertEqual(
+            normalized["clean_gpu_composite"].tolist(),
+            [INTEGRATED_GRAPHICS, "RTX4090_16GB"],
         )
 
     def test_pipeline_fits_and_predicts_from_the_declared_features(self):

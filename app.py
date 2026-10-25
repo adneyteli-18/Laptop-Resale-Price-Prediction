@@ -5,19 +5,10 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from train_model import FEATURES, INTEGRATED_GRAPHICS, normalize_graphics
+
 MODEL_PATH = Path(__file__).resolve().parent / "laptop_price_model.joblib"
 DATASET_PATH = Path(__file__).resolve().parent / "dataset.csv"
-
-FEATURES = [
-    "clean_brand",
-    "clean_model_series",
-    "cpu_composite_clean",
-    "clean_gpu_composite",
-    "ram_size_gb",
-    "storage_size_gb",
-    "clean_display_inches",
-    "warranty",
-]
 
 BRAND_MODEL_PREFIXES = {
     "ACER": ("Acer ", "TravelMate"),
@@ -96,15 +87,21 @@ def _model_series_options(data: pd.DataFrame, brand: str) -> list:
     ]
 
 
+def _dedicated_gpu_options(data: pd.DataFrame) -> list:
+    discrete_rates = data.groupby("clean_gpu_composite")["is_discrete"].mean()
+    return sorted(discrete_rates[discrete_rates > 0.5].index.tolist())
+
+
 def build_input_frame(data: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
     brand_options = _options(data, "clean_brand")
+    gpu_options = _dedicated_gpu_options(data)
     st.subheader("Laptop inputs")
     st.caption(
         f"Enter the specifications shown on the laptop listing or device. "
         f"Catalog: {len(brand_options)} brands, "
         f"{data['clean_model_series'].nunique()} model series, "
         f"{data['cpu_composite_clean'].nunique()} processors, and "
-        f"{data['clean_gpu_composite'].nunique()} graphics configurations."
+        f"{len(gpu_options)} dedicated graphics configurations."
     )
 
     left, right = st.columns(2, gap="large")
@@ -150,20 +147,26 @@ def build_input_frame(data: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
             help="Enter SSD capacity in gigabytes.",
         )
     with right:
-        gpu_options = _options(data, "clean_gpu_composite")
-        gpu = st.selectbox(
-            "Graphics",
-            gpu_options,
-            index=_default_index(
+        has_dedicated_gpu = st.checkbox("Dedicated graphics card", value=False)
+        if has_dedicated_gpu:
+            dedicated_gpu_rows = data[
+                data["is_discrete"].eq(1)
+                & data["clean_gpu_composite"].isin(gpu_options)
+            ]
+            default_gpu = dedicated_gpu_rows["clean_gpu_composite"].value_counts().idxmax()
+            gpu = st.selectbox(
+                "Graphics card",
                 gpu_options,
-                "INTEL_INFERRED_IGPU_SYSRAM",
-            ),
-            format_func=_format_hardware_option,
-            help=(
-                f"Browse all {len(gpu_options)} graphics options found in the "
-                "dataset. Type to search the full list."
-            ),
-        )
+                index=_default_index(gpu_options, default_gpu),
+                format_func=_format_hardware_option,
+                help=(
+                    f"Choose from {len(gpu_options)} dedicated graphics "
+                    "configurations found in the training data."
+                ),
+            )
+        else:
+            gpu = INTEGRATED_GRAPHICS
+            st.caption("Integrated graphics selected; no dedicated graphics card.")
         screen_size = st.number_input(
             "Screen size (inches)",
             min_value=10.0,
@@ -183,6 +186,7 @@ def build_input_frame(data: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
                 "clean_model_series": model_series,
                 "cpu_composite_clean": processor,
                 "clean_gpu_composite": gpu,
+                "is_discrete": int(has_dedicated_gpu),
                 "ram_size_gb": ram_gb,
                 "storage_size_gb": storage_gb,
                 "clean_display_inches": screen_size,
@@ -191,7 +195,7 @@ def build_input_frame(data: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
         ],
         columns=FEATURES,
     )
-    return input_frame, submitted
+    return normalize_graphics(input_frame), submitted
 
 
 def main() -> None:
