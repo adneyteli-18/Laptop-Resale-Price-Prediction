@@ -1,72 +1,72 @@
 # Laptop Resale Price Prediction Using Machine Learning and Streamlit
 
 ## Practical Aim
-This project demonstrates a machine learning deployment workflow for predicting the resale value of used laptops. The trained model is packaged into a local Streamlit web app so users can enter laptop specifications and receive a resale-price estimate in Indian Rupees.
+Train and deploy a machine-learning regression pipeline that estimates a used laptop's seller asking price from Indian second-hand marketplace listing data.
 
 ## Problem Statement
-Used laptop resale prices vary based on brand, processor, memory, storage, display size, condition, battery health, and warranty status. Estimating a fair resale value manually can be time-consuming and inconsistent. This project uses a supervised machine learning model to create a simple and repeatable resale-price prediction system.
+Laptop prices depend on more than broad component categories. Model series, exact processor and graphics configuration, location, warranty, and observed wear all affect the prices sellers ask. The original demonstration model used synthetic formula-generated targets, so it could not support real-world valuations. This version uses a documented C2C listing dataset and evaluates against its provided holdout split.
 
-## Objectives
-- Build a clean dataset of laptop specifications and resale prices.
-- Train a regression model to predict resale value.
-- Save the full preprocessing and model pipeline for reuse.
-- Deploy the trained pipeline in a Streamlit interface.
-- Evaluate the model using standard regression metrics.
+## Important Limitation
+The dataset target is a seller's **asking price**, not a confirmed completed sale price. Predictions estimate listing prices and are not guaranteed sale values or professional valuations. Dataset coverage and feature quality also constrain accuracy.
+
+## Dataset Source and License
+The source is [Indian Laptop Valuation & Arbitrage Dataset](https://www.kaggle.com/datasets/pagarani/indian-laptop-valuation-and-arbitrage-dataset), created by Pagarani. Kaggle identifies its license as [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). It describes 7,801 Indian peer-to-peer laptop listings and identifies `price` as the seller's INR asking price.
+
+This project distributes a reduced, feature-only version of that dataset in `dataset.csv`. Seller descriptions and target-derived columns have been omitted. The included dataset remains subject to CC BY-NC-SA 4.0: attribution is required, adaptations must use the same license, and commercial use is not permitted. Review the source terms and underlying data rights before reuse or redistribution.
+
+## Model Features and Target
+The model predicts `price` (INR asking price) from:
+- Brand, normalized laptop model series, CPU configuration, and GPU configuration.
+- RAM, SSD capacity, and display diagonal.
+- Indian state, warranty status, and the source's condition/degradation index.
+
+The app's controls correspond to the trained pipeline's input features. Listing description, price-normalized columns, and target-encoded columns are excluded to avoid exposing seller text and preventing target leakage.
+
+## Training and Evaluation
+- Preprocessing is contained in the saved scikit-learn pipeline: numeric median imputation and categorical imputation/one-hot encoding.
+- The estimator is an `ExtraTreesRegressor` with log-transformed target prices.
+- The source's `is_global_train` split is preserved. The model trains only on the source training rows; the source holdout rows are used for evaluation.
+- Reported metrics are MAE, RMSE, R², and a training-median MAE baseline, evaluated on that holdout.
+- Metrics describe performance on asking-price listings from this dataset, not accuracy against actual completed sales or future markets.
+
+Latest run on the source-provided holdout (1,939 listings):
+- Median-baseline MAE: ₹16,307.68
+- Model MAE: ₹7,222.25
+- Model RMSE: ₹15,644.34
+- Model R²: 0.6713
+
+The RMSE remains materially higher than the MAE because some asking prices are difficult to estimate. These figures are not a guarantee for an individual laptop.
+
+Run training:
+```bash
+python train_model.py
+```
+
+To reproduce `dataset.csv`, download the source dataset archive from Kaggle, extract `Kaggle_Master_Engineered_State.csv`, then run:
+```bash
+python prepare_dataset.py path\to\Kaggle_Master_Engineered_State.csv
+```
+The preparation script retains only needed feature/target/split columns, drops rows without a usable target or split label, and leaves missing feature values for pipeline imputation.
 
 ## Technology Stack
 - Python
 - Streamlit
 - Scikit-learn
-- pandas
+- Pandas
 - NumPy
-- joblib
-
-## Dataset Source and License Limitations
-This project initially uses a synthetic laptop resale dataset created for educational and demonstration purposes because a suitable public used-laptop resale dataset was not available in the local environment. The dataset is not sourced from a licensed public resale marketplace and should not be treated as real-world market evidence. The model is therefore presented as a demonstration pipeline rather than a production-grade valuation model.
-
-## Input Features and Target Variable
-The model uses the following features:
-- brand
-- processor
-- ram_gb
-- storage_gb
-- screen_size
-- gpu
-- condition
-- battery_health
-- warranty_months
-
-Target variable:
-- resale_price_inr
-
-## Model Training Procedure
-1. Load the dataset from `dataset.csv`.
-2. Validate required columns and target values.
-3. Separate numeric and categorical features.
-4. Use a `ColumnTransformer` to apply missing-value handling and one-hot encoding.
-5. Train a `RandomForestRegressor` with a fixed random state.
-6. Split the dataset into train and test sets using `train_test_split`.
-7. Evaluate performance on the held-out set.
-8. Save the full fitted pipeline as `laptop_price_model.joblib`.
-
-## Evaluation Metrics
-Current evaluation metrics from the trained demonstration model:
-- Dataset size: 900 rows × 10 columns
-- MAE: ₹11,722.70
-- RMSE: ₹15,616.97
-- R²: 0.7943
-
-These values were produced by running `python train_model.py` on the synthetic dataset included in this project.
+- Joblib
 
 ## Project Structure
-- `app.py` — Streamlit web interface for price prediction.
-- `train_model.py` — dataset validation, model training, evaluation, and model export.
-- `dataset.csv` — laptop feature dataset used for training.
-- `laptop_price_model.joblib` — saved preprocessing + model pipeline.
-- `requirements.txt` — Python dependencies for the project.
-- `README.md` — project documentation.
+- `app.py` — Streamlit listing-price estimator.
+- `prepare_dataset.py` — creates the privacy-conscious feature-only dataset from the Kaggle source CSV.
+- `train_model.py` — validates data, trains the preprocessing/model pipeline, evaluates on the fixed holdout, and saves the pipeline.
+- `dataset.csv` — prepared listing data, excluding free-text seller descriptions and target-derived features.
+- `dataset_synthetic_demo.csv` — the previous synthetic dataset, retained as an archived example only; it is not used for current training or prediction.
+- `laptop_price_model.joblib` — serialized fitted pipeline.
+- `test_train_model.py` — focused tests for dataset validation and model inference.
+- `requirements.txt` — Python dependencies.
 
-## Running the Project
+## Run the Application
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
@@ -76,4 +76,4 @@ streamlit run app.py
 ```
 
 ## Disclaimer
-This project is a learning-oriented demonstration. The prediction is an estimate and may not reflect live resale market conditions.
+Predictions are estimates of seller asking prices from a historical dataset. Actual transaction prices may differ substantially. This project is for educational use and non-commercial reuse of the dataset.
